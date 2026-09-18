@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+,  <title>Peanut Credits API – Endpoints</title>
+  <style>
+    :root {
+      --bg: #f8f5f0;
+      --card: #ffffff;
+      --primary: #2e7d32;
+      --primary-dark: #1b5e20;
+      --text: #333;
+      --muted: #666;
+      --border: #e0dcd3;
+      --code-bg: #f1eee8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding: 30px 20px;
+      background: var(--card);
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+
+    header h1 {
+      font-size: 1.9rem;
+      color: var(--primary-dark);
+      margin-bottom: 8px;
+    }
+
+    header p {
+      color: var(--muted);
+      font-size: 1.05rem;
+    }
+
+    .base-url {
+      display: inline-block;
+      margin-top: 16px;
+      padding: 8px 16px;
+      background: var(--code-bg);
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 0.95rem;
+      color: var(--primary-dark);
+    }
+
+    .endpoint {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.04);
+      border: 1px solid var(--border);
+    }
+
+    .method {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: white;
+      margin-right: 10px;
+    }
+
+    .get    { background: #0288d1; }
+    .post   { background: #2e7d32; }
+
+    .path {
+      font-family: monospace;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .desc {
+      margin: 12px 0 18px;
+      color: var(--muted);
+    }
+
+    h3 {
+      font-size: 0.95rem;
+      margin: 16px 0 8px;
+      color: var(--primary-dark);
+    }
+
+    pre {
+      background: var(--code-bg);
+      padding: 14px;
+      border-radius: 10px;
+      overflow-x: auto;
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+
+    .note {
+      margin-top: 30px;
+      padding: 16px 20px;
+      background: #fff8e1;
+      border-left: 5px solid #ffc107;
+      border-radius: 8px;
+      font-size: 0.95rem;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 50px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <header>
+      <h1>Peanut Credits API</h1>
+      <p>Simple documentation of all available endpoints</p>
+      <div class="base-url">Base URL: http://localhost:3000/api/credits</div>
+    </header>
+
+    <!-- GET / -->
+    <div class="endpoint">
+      <div>
+        <span class="method get">GET</span>
+        <span class="path">/api/credits</span>
+      </div>
+      <p class="desc">Returns the current credit balance and won milestones for the player.</p>
+
+      <h3>Headers</h3>
+      <pre>X-Player-Id: &lt;uuid&gt;   (optional – a new player is created if missing)</pre>
+
+      <h3>Example Response</h3>
+      <pre>{
+  "credits": 3,
+  "milestonesWon": [16, 32, 64],
+  "canPlay": true
+}</pre>
+    </div>
+
+    <!-- POST /use -->
+    <div class="endpoint">
+      <div>
+        <span class="method post">POST</span>
+        <span class="path">/api/credits/use</span>
+      </div>
+      <p class="desc">Spends 1 credit to start a new round. Returns 402 if the player has no credits.</p>
+
+      <h3>Headers</h3>
+      <pre>X-Player-Id: &lt;uuid&gt;
+Content-Type: application/json</pre>
+
+      <h3>Example Response (success)</h3>
+      <pre>{
+  "success": true,
+  "credits": 2
+}</pre>
+
+      <h3>Example Response (no credits)</h3>
+      <pre>{
+  "success": false,
+  "message": "Insufficient credits"
+}</pre>
+    </div>
+
+    <!-- POST /redeem -->
+    <div class="endpoint">
+      <div>
+        <span class="method post">POST</span>
+        <span class="path">/api/credits/redeem</span>
+      </div>
+      <p class="desc">Redeems a purchase code and adds the corresponding credits.</p>
+
+      <h3>Headers</h3>
+      <pre>X-Player-Id: &lt;uuid&gt;
+Content-Type: application/json</pre>
+
+      <h3>Request Body</h3>
+      <pre>{
+  "code": "SMALL-1234"
+}</pre>
+
+      <h3>Example Response (success)</h3>
+      <pre>{
+  "success": true,
+  "amount": 1,
+  "credits": 4,
+  "message": "Added 1 credit(s). Enjoy!"
+}</pre>
+    </div>
+
+    <!-- POST /milestones -->
+    <div class="endpoint">
+      <div>
+        <span class="method post">POST</span>
+        <span class="path">/api/credits/milestones</span>
+      </div>
+      <p class="desc">Records a tile milestone. Awards bonus credits only the first time the value is reached.</p>
+
+      <h3>Request Body</h3>
+      <pre>{
+  "value": 256
+}</pre>
+
+      <h3>Example Response (first time)</h3>
+      <pre>{
+  "success": true,
+  "firstTime": true,
+  "bonus": 3,
+  "credits": 7,
+  "message": "256 tile reached! +3 credits"
+}</pre>
+    </div>
+
+    <!-- POST /score-bonus -->
+    <div class="endpoint">
+      <div>
+        <span class="method post">POST</span>
+        <span class="path">/api/credits/score-bonus</span>
+      </div>
+      <p class="desc">Awards end-of-round score bonus (capped). Call this once when a round ends.</p>
+
+      <h3>Request Body</h3>
+      <pre>{
+  "score": 1840
+}</pre>
+
+      <h3>Example Response</h3>
+      <pre>{
+  "success": true,
+  "bonus": 6,
+  "credits": 13
+}</pre>
+    </div>
+
+    <div class="note">
+      <strong>Important:</strong> Every request should include the header <code>X-Player-Id</code>.  
+      If it is missing, the API automatically creates a new player and returns the new ID in the response header <code>X-Player-Id</code>.  
+      Store this ID in <code>localStorage</code> and send it on all future requests.
+    </div>
+
+    <footer>
+      Peanut Credits API • Built for DrissNow 2048
+    </footer>
+
+  </div>
+</body>
+</html>
