@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "playerId": "cc208005-8133-4830-9ed0-a7ba28bc2b60",
+  "sessionId": 122,
+  "startedAt": 1789703015384.4,
+  "roundEndTime": 1789703044931,
+  "durationSeconds": 30,
+  "units": 5,
+  "scoreAtLastSnapshot": 0,
+  "lastSnapshotSlot": 0,
+  "points": [
+    {
+      "seconds": 0,
+      "amount": 5,
+      "compoundAmount": 5,
+      "score": 0
+    }
+  ],
+  "savedAt": 1789703015281
+}
