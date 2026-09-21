@@ -686,4 +686,122 @@ router.post(
 );
 
 
+router.get('/me', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || '';
+
+    if (!authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication token required'
+      });
+    }
+
+    const token = authHeader.substring(7).trim();
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication token required'
+      });
+    }
+
+    const tokenHash = hashToken(token);
+
+    const [rows] = await pool.execute(
+      `
+      SELECT
+        u.*,
+        p.id AS player_id,
+        p.user_id AS player_user_id,
+        p.credits AS player_credits,
+        s.expires_at AS session_expires_at
+      FROM auth_sessions s
+      INNER JOIN users u
+        ON u.id = s.user_id
+      LEFT JOIN players p
+        ON p.user_id = u.id
+      WHERE s.token_hash = ?
+        AND s.expires_at > NOW()
+      LIMIT 1
+      `,
+      [tokenHash]
+    );
+
+    if (!rows.length) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired session'
+      });
+    }
+
+    const row = rows[0];
+
+    /*
+     * Build the complete safe user object.
+     *
+     * Do NOT send password_hash to the browser.
+     */
+    const user = {};
+
+    Object.keys(row).forEach(function (key) {
+      if (key !== 'password_hash') {
+        user[key] = row[key];
+      }
+    });
+
+    /*
+     * Preserve convenient player information.
+     */
+    user.playerId =
+      row.player_id !== null &&
+      row.player_id !== undefined
+        ? row.player_id
+        : null;
+
+    user.credits =
+      row.player_credits !== null &&
+      row.player_credits !== undefined
+        ? Number(row.player_credits)
+        : 0;
+
+    user.player = {
+      id:
+        row.player_id !== null &&
+        row.player_id !== undefined
+          ? row.player_id
+          : null,
+
+      user_id:
+        row.player_user_id !== null &&
+        row.player_user_id !== undefined
+          ? row.player_user_id
+          : null,
+
+      credits:
+        row.player_credits !== null &&
+        row.player_credits !== undefined
+          ? Number(row.player_credits)
+          : 0
+    };
+
+    return res.json({
+      success: true,
+      account: user
+    });
+
+  } catch (error) {
+
+    console.error(
+      'Account /me error:',
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to load account'
+    });
+  }
+});
+
 module.exports = router;

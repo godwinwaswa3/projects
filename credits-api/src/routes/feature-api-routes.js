@@ -1513,5 +1513,297 @@ router.post('/friends', async (req, res) => {
   }
 });
 
+// ============================================================
+// POST /api/features/economy/current
+// ============================================================
+//
+// Returns the REAL-TIME compounded economy balance.
+//
+// IMPORTANT:
+// - Does NOT create a new session.
+// - Does NOT use players.credits.
+// - Does NOT use account.credits.
+// - Calculates the balance from the active economy session.
+// - Uses server time so the value continues compounding.
+// - Designed to be called through:
+//
+//   POST http://localhost:3001/curl
+//
+//   {
+//     "path": "/game/economy/current",
+//     "method": "POST",
+//     "playerId": "...",
+//     "body": {}
+//   }
+//
+// ============================================================
+
+router.post('/economy/current', async (req, res) => {
+  try {
+
+    const playerId =
+      requirePlayerId(req, res);
+
+    if (!playerId) {
+      return;
+    }
+
+
+    // ----------------------------------------------------------
+    // Find the newest economy session for this player.
+    // ----------------------------------------------------------
+
+    const [rows] =
+      await pool.execute(
+        `SELECT
+           id,
+           player_id,
+           started_at,
+           status,
+           base_balance,
+           interest_rate,
+           compound_seconds,
+           plot_interval_seconds,
+           duration_seconds,
+           final_balance
+         FROM economy_sessions
+         WHERE player_id = ?
+         ORDER BY started_at DESC, id DESC
+         LIMIT 1`,
+        [playerId]
+      );
+
+
+    const session =
+      rows[0];
+
+
+    // ----------------------------------------------------------
+    // No economy session.
+    // ----------------------------------------------------------
+
+    if (!session) {
+
+      return res.status(404).json({
+        success: false,
+        message: 'No economy session found'
+      });
+
+    }
+
+
+    // ----------------------------------------------------------
+    // SESSION HAS BEEN SETTLED
+    // ----------------------------------------------------------
+
+    if (
+      session.status === 'settled'
+    ) {
+
+      const finalBalance =
+        Number(
+          session.final_balance
+        );
+
+
+      return res.json({
+
+        success: true,
+
+        playerId:
+          playerId,
+
+        sessionId:
+          Number(
+            session.id
+          ),
+
+        status:
+          'settled',
+
+        balance:
+          Number.isFinite(finalBalance)
+            ? finalBalance
+            : 0,
+
+        amount:
+          Number.isFinite(finalBalance)
+            ? finalBalance
+            : 0,
+
+        elapsedSeconds:
+          Number(
+            session.duration_seconds
+          ),
+
+        durationSeconds:
+          Number(
+            session.duration_seconds
+          ),
+
+        baseBalance:
+          Number(
+            session.base_balance
+          ),
+
+        interestRate:
+          Number(
+            session.interest_rate
+          ),
+
+        compoundSeconds:
+          Number(
+            session.compound_seconds
+          )
+
+      });
+
+    }
+
+
+    // ----------------------------------------------------------
+    // CANCELLED SESSION
+    // ----------------------------------------------------------
+
+    if (
+      session.status !== 'active'
+    ) {
+
+      return res.status(409).json({
+
+        success: false,
+
+        message:
+          'Economy session is not active',
+
+        status:
+          session.status,
+
+        sessionId:
+          Number(
+            session.id
+          )
+
+      });
+
+    }
+
+
+    // ----------------------------------------------------------
+    // GET REAL SERVER ELAPSED TIME
+    // ----------------------------------------------------------
+
+    const elapsed =
+      await getServerElapsed(
+        session
+      );
+
+
+    // ----------------------------------------------------------
+    // CALCULATE REAL-TIME COMPOUNDING BALANCE
+    // ----------------------------------------------------------
+
+    const balance =
+      calculateEconomyAmount(
+
+        session.base_balance,
+
+        session.interest_rate,
+
+        session.compound_seconds,
+
+        elapsed
+
+      );
+
+
+    // ----------------------------------------------------------
+    // RETURN LIVE ECONOMY VALUE
+    // ----------------------------------------------------------
+
+    return res.json({
+
+      success: true,
+
+      playerId:
+        playerId,
+
+      sessionId:
+        Number(
+          session.id
+        ),
+
+      status:
+        'active',
+
+      /*
+       * These two values intentionally contain
+       * the same live compounded amount.
+       *
+       * "balance" is used by account.js.
+       * "amount" is compatible with economy APIs.
+       */
+      balance:
+        Number(balance),
+
+      amount:
+        Number(balance),
+
+      baseBalance:
+        Number(
+          session.base_balance
+        ),
+
+      interestRate:
+        Number(
+          session.interest_rate
+        ),
+
+      compoundSeconds:
+        Number(
+          session.compound_seconds
+        ),
+
+      plotIntervalSeconds:
+        Number(
+          session.plot_interval_seconds
+        ),
+
+      elapsedSeconds:
+        Number(
+          elapsed
+        ),
+
+      durationSeconds:
+        Number(
+          session.duration_seconds
+        ),
+
+      startedAt:
+        session.started_at
+
+    });
+
+
+  } catch (err) {
+
+    console.error(
+      'Economy current balance error:',
+      err
+    );
+
+
+    return res.status(500).json({
+
+      success: false,
+
+      message:
+        err.message ||
+        'Unable to calculate current economy balance'
+
+    });
+
+  }
+});
 
 module.exports = router;
